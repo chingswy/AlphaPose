@@ -7,6 +7,7 @@ import torch.nn as nn
 import torch.utils.data
 import numpy as np
 from opt import opt
+from glob import glob
 
 from dataloader import ImageLoader, DetectionLoader, DetectionProcessor, DataWriter, Mscoco
 from yolo.util import write_results, dynamic_write_results
@@ -36,8 +37,10 @@ if __name__ == "__main__":
     if len(inputlist):
         im_names = open(inputlist, 'r').readlines()
     elif len(inputpath) and inputpath != '/':
-        for root, dirs, files in os.walk(inputpath):
-            im_names = files
+        # @kanazawa: only run on images in the directory.
+        im_names = sorted(glob(inputpath + '/*.png'))
+        # for root, dirs, files in os.walk(inputpath):
+        #     im_names = files
     else:
         raise IOError('Error: must contain either --indir/--list')
 
