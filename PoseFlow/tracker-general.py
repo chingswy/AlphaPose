@@ -19,6 +19,8 @@ import copy
 import heapq
 from munkres import Munkres, print_matrix
 from PIL import Image
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from utils import *
@@ -29,7 +31,13 @@ import argparse
 def display_pose(imgdir, visdir, tracked, cmap):
 
     print("Start visualization...\n")
+    num = -1
     for imgname in tqdm(tracked.keys()):
+        num += 1
+        if num%10 == 0:
+            pass
+        else:
+            continue
         img = Image.open(os.path.join(imgdir,imgname))
         width, height = img.size
         fig = plt.figure(figsize=(width/10,height/10),dpi=10)
@@ -64,6 +72,53 @@ def display_pose(imgdir, visdir, tracked, cmap):
                 for idx in range(len(pairs)):
                     plt.plot(np.clip(pose[pairs[idx],0],0,width),np.clip(pose[pairs[idx],1],0,height),'r-',
                             color=cmap(tracked_id), linewidth=60/alpha_ratio*np.mean(pose[pairs[idx],2]), alpha=0.6/alpha_ratio*np.mean(pose[pairs[idx],2]))
+            elif pose.shape[0] == 25:
+                coco_part_names = ['Nose','LEye','REye','LEar','REar','LShoulder','RShoulder','LElbow','RElbow','LWrist','RWrist','LHip','RHip','LKnee','RKnee','LAnkle','RAnkle']
+                colors = ['k', 'r', 'r', 'r', 'b', 'b', 'b', 'k', 'r', 'r', 'r', 'b', 'b', 'b', 'y', 'y', 'y', 'y', 'b', 'b', 'b', 'r', 'r', 'r']
+                pairs = [[ 1,  0],
+                            [ 2,  1],
+                            [ 3,  2],
+                            [ 4,  3],
+                            [ 5,  1],
+                            [ 6,  5],
+                            [ 7,  6],
+                            [ 8,  1],
+                            [ 9,  8],
+                            [10,  9],
+                            [11, 10],
+                            [12,  8],
+                            [13, 12],
+                            [14, 13],
+                            [15,  0],
+                            [16,  0],
+                            [17, 15],
+                            [18, 16],
+                            [19, 14],
+                            [20, 19],
+                            [21, 14],
+                            [22, 11],
+                            [23, 22],
+                            [24, 11]]
+                for idx_c, color in enumerate(colors):
+                    plt.plot(np.clip(pose[idx_c,0],0,width), np.clip(pose[idx_c,1],0,height), marker='o', 
+                            color=color, ms=80/alpha_ratio*np.mean(pose[idx_c,2]), markerfacecolor=(1, 1, 0, 0.7/alpha_ratio*pose[idx_c,2]))
+                for idx in range(len(pairs)):
+                    plt.plot(np.clip(pose[pairs[idx],0],0,width),np.clip(pose[pairs[idx],1],0,height),'r-',
+                            color=cmap(tracked_id), linewidth=60/alpha_ratio*np.mean(pose[pairs[idx],2]), alpha=0.6/alpha_ratio*np.mean(pose[pairs[idx],2]))
+            
+            # find the bounding box
+            thres = 0.1
+            ll, rr = np.min(pose[pose[:,2]>thres,0]), np.max(pose[pose[:,2]>thres,0])
+            bb, tt = np.min(pose[pose[:,2]>thres,1]), np.max(pose[pose[:,2]>thres,1])
+            center = (int((ll+rr)/2),int((bb+tt)/2))
+            length = max(int(1.2*(rr-ll)/2),int(1.2*(tt-bb)/2)) # use 1.2
+            l = center[0] - length
+            r = center[0] + length
+            b = center[1] - length
+            t = center[1] + length
+            plt.plot([l,l,r,r,l],[b,t,t,b,b],linewidth=40,color='k')
+            plt.text(pose[:,0].mean(),pose[:,1].mean(), '%d' % tracked_id, ha='center', va= 'bottom',fontsize=100)
+
         plt.axis('off')
         ax = plt.gca()
         ax.set_xlim([0,width])
@@ -71,7 +126,7 @@ def display_pose(imgdir, visdir, tracked, cmap):
         extent = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
         if not os.path.exists(visdir): 
             os.mkdir(visdir)
-        fig.savefig(os.path.join(visdir,imgname.split()[0]+".png"), pad_inches = 0.0, bbox_inches=extent, dpi=13)
+        fig.savefig(os.path.join(visdir,imgname.split('.')[0]+".png"), pad_inches = 0.0, bbox_inches=extent, dpi=13)
         plt.close()
 
 
@@ -122,11 +177,19 @@ if __name__ == '__main__':
             results = json.load(f)
             for i in range(len(results)):
                 imgpath = results[i]['image_id']
+                box = get_box_naive(results[i]['keypoints'])
+                if box[1] - box[0] < 100 and box[3] - box[2] < 100:
+                    continue
                 if last_image_name != imgpath:
                     results_forvis[imgpath] = []
                     results_forvis[imgpath].append({'keypoints':results[i]['keypoints'],'scores':results[i]['score']})
                 else:
                     results_forvis[imgpath].append({'keypoints':results[i]['keypoints'],'scores':results[i]['score']})
+                if 'openpose' in notrack_json:
+                    results_forvis[imgpath][-1]['face_keypoints_2d'] = results[i]['face_keypoints_2d']
+                    results_forvis[imgpath][-1]['hand_left_keypoints_2d'] = results[i]['hand_left_keypoints_2d']
+                    results_forvis[imgpath][-1]['hand_right_keypoints_2d'] = results[i]['hand_right_keypoints_2d']
+                    
                 last_image_name = imgpath
         notrack_json = os.path.join(os.path.dirname(notrack_json), "alphapose-results-forvis.json")
         with open(notrack_json,'w') as json_file:
@@ -220,7 +283,6 @@ if __name__ == '__main__':
 
     with open(tracked_json,'w') as json_file:
         json_file.write(json.dumps(notrack))
-
     if len(args.visdir)>0:
         cmap = plt.cm.get_cmap("hsv", num_persons)
         display_pose(image_dir, vis_dir, notrack, cmap)

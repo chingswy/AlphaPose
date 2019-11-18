@@ -42,6 +42,16 @@ def get_box(pose, imgpath):
 
     return expand_bbox(xmin, xmax, ymin, ymax, img_width, img_height)
 
+def get_box_naive(pose):
+
+    pose = np.array(pose).reshape(-1,3)
+    xmin = np.min(pose[:,0])
+    xmax = np.max(pose[:,0])
+    ymin = np.min(pose[:,1])
+    ymax = np.max(pose[:,1])
+
+    return xmin, xmax, ymin, ymax
+
 # expand bbox for containing more background
 def expand_bbox(left, right, top, bottom, img_width, img_height):
 
