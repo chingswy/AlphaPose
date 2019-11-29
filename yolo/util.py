@@ -26,7 +26,7 @@ def convert2cpu(matrix):
     else:
         return matrix
 
-def predict_transform(prediction, inp_dim, anchors, num_classes, CUDA = True):
+def predict_transform(prediction, inp_dim, anchors, num_classes, CUDA = True, device=None):
     batch_size = prediction.size(0)
     stride =  inp_dim // prediction.size(2)
     grid_size = inp_dim // stride
@@ -57,8 +57,13 @@ def predict_transform(prediction, inp_dim, anchors, num_classes, CUDA = True):
     y_offset = torch.FloatTensor(b).view(-1,1)
     
     if CUDA:
-        x_offset = x_offset.cuda()
-        y_offset = y_offset.cuda()
+        if device is None:
+            x_offset = x_offset.cuda()
+            y_offset = y_offset.cuda()
+        else:
+            x_offset = x_offset.to(device)
+            y_offset = y_offset.to(device)
+
     
     x_y_offset = torch.cat((x_offset, y_offset), 1).repeat(1,num_anchors).view(-1,2).unsqueeze(0)
     
@@ -68,7 +73,10 @@ def predict_transform(prediction, inp_dim, anchors, num_classes, CUDA = True):
     anchors = torch.FloatTensor(anchors)
     
     if CUDA:
-        anchors = anchors.cuda()
+        if device is None:
+            anchors = anchors.cuda()
+        else:
+            anchors = anchors.to(device)
     
     anchors = anchors.repeat(grid_size*grid_size, 1).unsqueeze(0)
     prediction[:,:,2:4] = torch.exp(prediction[:,:,2:4])*anchors

@@ -317,7 +317,7 @@ class Darknet(nn.Module):
         return self.module_list
 
                 
-    def forward(self, x, CUDA):
+    def forward(self, x, CUDA, device=None):
         detections = []
         modules = self.blocks[1:]
         outputs = {}   #We cache the outputs for the route layer
@@ -378,7 +378,7 @@ class Darknet(nn.Module):
                 
                 #Output the result
                 x = x.data
-                x = predict_transform(x, inp_dim, anchors, num_classes, CUDA)
+                x = predict_transform(x, inp_dim, anchors, num_classes, CUDA, device=device)
                 
                 if type(x) == int:
                     continue
