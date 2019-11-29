@@ -23,6 +23,10 @@ except AttributeError:
         return tensor
     torch._utils._rebuild_tensor_v2 = _rebuild_tensor_v2
 
+import os
+current_dir = os.path.abspath(os.path.dirname(__file__))
+from os.path import join
+alphapose_root = join(current_dir, '..', '..')
 
 class InferenNet(nn.Module):
     def __init__(self, kernel_size, dataset):
@@ -31,7 +35,7 @@ class InferenNet(nn.Module):
         model = createModel().cuda()
         print('Loading pose model from {}'.format('./models/sppe/duc_se.pth'))
         sys.stdout.flush()
-        model.load_state_dict(torch.load('./models/sppe/duc_se.pth'))
+        model.load_state_dict(torch.load(join(alphapose_root, 'models/sppe/duc_se.pth')))
         model.eval()
         self.pyranet = model
 
@@ -58,7 +62,7 @@ class InferenNet_fast(nn.Module):
 
         model = createModel().cuda()
         print('Loading pose model from {}'.format('./models/sppe/duc_se.pth'))
-        model.load_state_dict(torch.load('./models/sppe/duc_se.pth'))
+        model.load_state_dict(torch.load(join(alphapose_root, 'models/sppe/duc_se.pth')))
         model.eval()
         self.pyranet = model
 
